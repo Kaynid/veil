@@ -26,6 +26,7 @@ const FRAGMENT_SHADER = `
   uniform vec2 u_mousePos;
   uniform float u_mouseActive;
   uniform vec2 u_resolution;
+  uniform vec2 u_imageResolution;
   
   void main() {
     vec2 uv = vUv;
@@ -41,8 +42,19 @@ const FRAGMENT_SHADER = `
     // Circular mask
     float mask = smoothstep(radius, radius - softness, dist) * u_mouseActive;
     
-    vec3 front = texture2D(u_frontImage, uv).rgb;
-    vec3 back = texture2D(u_backImage, uv).rgb;
+    // Object-fit: cover logic for UVs
+    vec2 ratio = vec2(
+      min((u_resolution.x / u_resolution.y) / (u_imageResolution.x / u_imageResolution.y), 1.0),
+      min((u_resolution.y / u_resolution.x) / (u_imageResolution.y / u_imageResolution.x), 1.0)
+    );
+    
+    vec2 coverUV = vec2(
+      uv.x * ratio.x + (1.0 - ratio.x) * 0.5,
+      uv.y * ratio.y + (1.0 - ratio.y) * 0.5
+    );
+    
+    vec3 front = texture2D(u_frontImage, coverUV).rgb;
+    vec3 back = texture2D(u_backImage, coverUV).rgb;
     
     // Pure, clean blend (no distortion)
     vec3 finalColor = mix(front, back, mask);
@@ -93,7 +105,7 @@ function createProgram(
 function loadImageTexture(
   gl: WebGLRenderingContext,
   src: string
-): Promise<WebGLTexture> {
+): Promise<{ texture: WebGLTexture; width: number; height: number }> {
   return new Promise((resolve, reject) => {
     const img = new Image();
     // Safari requires crossOrigin to be set for WebGL texImage2D
@@ -115,7 +127,7 @@ function loadImageTexture(
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
         
         gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img);
-        resolve(tex);
+        resolve({ texture: tex, width: img.width, height: img.height });
       } catch (err) {
         reject(err);
       }
@@ -151,6 +163,7 @@ export function RevealCanvas({ onLoadProgress, onLoaded }: RevealCanvasProps) {
     let program: WebGLProgram | null = null;
     let frontTex: WebGLTexture | null = null;
     let backTex: WebGLTexture | null = null;
+    let imageResolution = { width: 1920, height: 1080 }; // Default fallback
     let posBuffer: WebGLBuffer | null = null;
 
     const resize = () => {
@@ -179,9 +192,15 @@ export function RevealCanvas({ onLoadProgress, onLoaded }: RevealCanvasProps) {
       onLoadProgress(30);
 
       try {
-        frontTex = await loadImageTexture(gl, "/images/hero-front.jpg");
+        const frontResult = await loadImageTexture(gl, "/images/hero-front.jpg");
+        frontTex = frontResult.texture;
+        imageResolution = { width: frontResult.width, height: frontResult.height };
+        
         onLoadProgress(65);
-        backTex = await loadImageTexture(gl, "/images/hero-back.jpg");
+        
+        const backResult = await loadImageTexture(gl, "/images/hero-back.jpg");
+        backTex = backResult.texture;
+        
         onLoadProgress(100);
         onLoaded();
       } catch (err) {
@@ -226,6 +245,11 @@ export function RevealCanvas({ onLoadProgress, onLoaded }: RevealCanvasProps) {
         gl.getUniformLocation(program, "u_resolution"),
         canvas.width,
         canvas.height
+      );
+      gl.uniform2f(
+        gl.getUniformLocation(program, "u_imageResolution"),
+        imageResolution.width,
+        imageResolution.height
       );
 
       const posLoc = gl.getAttribLocation(program, "a_position");
