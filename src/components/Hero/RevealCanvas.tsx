@@ -59,6 +59,10 @@ const FRAGMENT_SHADER = `
     // Pure, clean blend (no distortion)
     vec3 finalColor = mix(front, back, mask);
     
+    // Add subtle burgundy aura to the mask area so it's visible even on empty background
+    vec3 auraColor = vec3(0.35, 0.08, 0.15); 
+    finalColor += auraColor * mask * 0.25;
+    
     // Very subtle vignette
     float vignette = 1.0 - smoothstep(0.4, 1.2, length((uv - 0.5) * vec2(1.2, 1.0)));
     finalColor *= mix(0.85, 1.0, vignette);
@@ -108,8 +112,6 @@ function loadImageTexture(
 ): Promise<{ texture: WebGLTexture; width: number; height: number }> {
   return new Promise((resolve, reject) => {
     const img = new Image();
-    // Safari requires crossOrigin to be set for WebGL texImage2D
-    img.crossOrigin = "";
     img.onload = () => {
       try {
         const tex = gl.createTexture();
@@ -267,6 +269,7 @@ export function RevealCanvas({ onLoadProgress, onLoaded }: RevealCanvasProps) {
     };
 
     const onTouchMove = (e: TouchEvent) => {
+      e.preventDefault();
       if (!canvas || !e.touches[0]) return;
       const rect = canvas.getBoundingClientRect();
       mouseRef.current.x = (e.touches[0].clientX - rect.left) / rect.width;
@@ -277,16 +280,21 @@ export function RevealCanvas({ onLoadProgress, onLoaded }: RevealCanvasProps) {
     const onMouseLeave = () => (mouseRef.current.active = false);
 
     const onTouchStart = (e: TouchEvent) => {
+      e.preventDefault();
       mouseRef.current.active = true;
-      onTouchMove(e);
+      if (canvas && e.touches[0]) {
+        const rect = canvas.getBoundingClientRect();
+        mouseRef.current.x = (e.touches[0].clientX - rect.left) / rect.width;
+        mouseRef.current.y = (e.touches[0].clientY - rect.top) / rect.height;
+      }
     };
     const onTouchEnd = () => (mouseRef.current.active = false);
 
     canvas.addEventListener("mousemove", onMouseMove);
     canvas.addEventListener("mouseenter", onMouseEnter);
     canvas.addEventListener("mouseleave", onMouseLeave);
-    canvas.addEventListener("touchmove", onTouchMove, { passive: true });
-    canvas.addEventListener("touchstart", onTouchStart, { passive: true });
+    canvas.addEventListener("touchmove", onTouchMove, { passive: false });
+    canvas.addEventListener("touchstart", onTouchStart, { passive: false });
     canvas.addEventListener("touchend", onTouchEnd);
 
     init();
@@ -315,6 +323,7 @@ export function RevealCanvas({ onLoadProgress, onLoaded }: RevealCanvasProps) {
         width: "100%",
         height: "100%",
         display: "block",
+        touchAction: "none",
       }}
     />
   );
