@@ -191,26 +191,17 @@ function ChapterPanel({ chapter }: { chapter: typeof chapters[0] }) {
   return (
     <motion.div
       ref={panelRef}
+      className="chapter-panel-grid"
       initial={{ opacity: 0, y: 60 }}
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, margin: "-15%" }}
       transition={{ duration: 1.0, ease: [0.16, 1, 0.3, 1] }}
-      style={{
-        display: "grid",
-        gridTemplateColumns: "1fr 1fr",
-        gap: "clamp(40px, 5vw, 80px)",
-        alignItems: "center",
-        marginBottom: "clamp(120px, 18vh, 200px)",
-      }}
     >
       {/* Media Panel */}
       <div
+        className="chapter-media-panel"
         style={{
           order: isMediaLeft ? 1 : 2,
-          position: "relative",
-          height: "clamp(400px, 70vh, 700px)",
-          borderRadius: "4px",
-          overflow: "hidden",
         }}
       >
         {/* Outer bezel */}
@@ -263,12 +254,9 @@ function ChapterPanel({ chapter }: { chapter: typeof chapters[0] }) {
 
       {/* Typography Panel */}
       <div
+        className="chapter-text-panel"
         style={{
           order: isMediaLeft ? 2 : 1,
-          display: "flex",
-          flexDirection: "column",
-          justifyContent: "center",
-          padding: isMediaLeft ? "0 0 0 clamp(20px, 3vw, 60px)" : "0 clamp(20px, 3vw, 60px) 0 0",
         }}
       >
         {/* Hairline accent */}

@@ -1,120 +1,78 @@
 "use client";
 
-import { useEffect, useRef, useCallback } from "react";
+import { useEffect, useRef } from "react";
 import gsap from "gsap";
 
 export function CustomCursor() {
   const cursorRef = useRef<HTMLDivElement>(null);
-  const ringRef = useRef<HTMLDivElement>(null);
   const pos = useRef({ x: 0, y: 0 });
-  const vel = useRef({ x: 0, y: 0 });
-  const prevPos = useRef({ x: 0, y: 0 });
   const quickX = useRef<ReturnType<typeof gsap.quickTo> | null>(null);
   const quickY = useRef<ReturnType<typeof gsap.quickTo> | null>(null);
-  const ringQuickX = useRef<ReturnType<typeof gsap.quickTo> | null>(null);
-  const ringQuickY = useRef<ReturnType<typeof gsap.quickTo> | null>(null);
 
   useEffect(() => {
-    if (!cursorRef.current || !ringRef.current) return;
+    if (!cursorRef.current) return;
 
-    // Check for touch device
+    // Disable on touch devices
     if ("ontouchstart" in window) {
       cursorRef.current.style.display = "none";
-      ringRef.current.style.display = "none";
       return;
     }
 
     quickX.current = gsap.quickTo(cursorRef.current, "x", {
-      duration: 0.15,
+      duration: 0.12,
       ease: "power3",
     });
     quickY.current = gsap.quickTo(cursorRef.current, "y", {
-      duration: 0.15,
-      ease: "power3",
-    });
-    ringQuickX.current = gsap.quickTo(ringRef.current, "x", {
-      duration: 0.5,
-      ease: "power3",
-    });
-    ringQuickY.current = gsap.quickTo(ringRef.current, "y", {
-      duration: 0.5,
+      duration: 0.12,
       ease: "power3",
     });
 
     const onMouseMove = (e: MouseEvent) => {
       pos.current = { x: e.clientX, y: e.clientY };
-
-      // Calculate velocity for cursor stretching
-      vel.current = {
-        x: e.clientX - prevPos.current.x,
-        y: e.clientY - prevPos.current.y,
-      };
-      prevPos.current = { x: e.clientX, y: e.clientY };
-
       quickX.current?.(e.clientX);
       quickY.current?.(e.clientY);
-      ringQuickX.current?.(e.clientX);
-      ringQuickY.current?.(e.clientY);
-
-      // Velocity-based stretching
-      const speed = Math.sqrt(vel.current.x ** 2 + vel.current.y ** 2);
-      const angle = Math.atan2(vel.current.y, vel.current.x) * (180 / Math.PI);
-      const stretch = Math.min(speed * 0.04, 0.6);
-
-      if (cursorRef.current) {
-        gsap.to(cursorRef.current, {
-          scaleX: 1 + stretch,
-          scaleY: 1 - stretch * 0.3,
-          rotation: angle,
-          duration: 0.15,
-          ease: "power2.out",
-        });
-      }
-    };
-
-    // Hover state for interactive elements
-    const onMouseEnterInteractive = () => {
-      ringRef.current?.classList.add("hovering");
-      gsap.to(cursorRef.current, {
-        scale: 0.5,
-        duration: 0.4,
-        ease: "power3.out",
-      });
-    };
-
-    const onMouseLeaveInteractive = () => {
-      ringRef.current?.classList.remove("hovering");
-      gsap.to(cursorRef.current, {
-        scale: 1,
-        duration: 0.4,
-        ease: "power3.out",
-      });
     };
 
     window.addEventListener("mousemove", onMouseMove);
 
-    // Add hover listeners to interactive elements
-    const interactives = document.querySelectorAll(
-      "a, button, [role='button'], .hero-canvas-container"
-    );
-    interactives.forEach((el) => {
-      el.addEventListener("mouseenter", onMouseEnterInteractive);
-      el.addEventListener("mouseleave", onMouseLeaveInteractive);
-    });
-
     return () => {
       window.removeEventListener("mousemove", onMouseMove);
-      interactives.forEach((el) => {
-        el.removeEventListener("mouseenter", onMouseEnterInteractive);
-        el.removeEventListener("mouseleave", onMouseLeaveInteractive);
-      });
     };
   }, []);
 
   return (
-    <>
-      <div ref={cursorRef} className="custom-cursor" />
-      <div ref={ringRef} className="custom-cursor-ring" />
-    </>
+    <div
+      ref={cursorRef}
+      className="custom-cursor"
+      style={{
+        position: "fixed",
+        top: 0,
+        left: 0,
+        width: "24px",
+        height: "24px",
+        pointerEvents: "none",
+        zIndex: 9999,
+        transform: "translate(-4px, -2px)",
+        willChange: "transform",
+        mixBlendMode: "difference",
+      }}
+    >
+      {/* Arrow SVG — matches macOS default arrow shape but white */}
+      <svg
+        width="24"
+        height="24"
+        viewBox="0 0 24 24"
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
+        style={{ filter: "drop-shadow(0 1px 2px rgba(0,0,0,0.5))" }}
+      >
+        <path
+          d="M5 2L5 19.5L9.5 15L14.5 22L17 20.5L12 13.5L18 13L5 2Z"
+          fill="white"
+          stroke="rgba(0,0,0,0.3)"
+          strokeWidth="0.5"
+        />
+      </svg>
+    </div>
   );
 }
